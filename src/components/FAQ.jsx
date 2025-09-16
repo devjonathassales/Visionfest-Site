@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 
 const items = [
-  { q: "Tem fidelidade?", a: "Não. Você pode cancelar quando quiser." },
+  { q: "Tem fidelidade?", a: "Não. Você pode cancelar quando quiser. Respeitando o prazo minimo de 30 dias para antes do vencimento para o recorrente e 15 dias para os demais planos." },
   {
     q: "Como funciona a cobrança?",
-    a: "No lançamento, não há gateway para receber do cliente final. Em breve, pagamentos direto na plataforma.",
+    a: "Cobrança mensal via cartão(Recorrente), Pix ou boleto. Sem surpresas.",
   },
   {
     q: "Posso migrar meus dados?",

@@ -1,7 +1,9 @@
-import React, { useState } from "react";
+// src/components/Header.jsx
+import React, { useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
 import { whatsAcolhimentoUrl } from "../lib/whatsapp";
+
 
 const APP_URL = import.meta.env.VITE_APP_URL || "https://app.seudominio.com.br";
 const logoUrl = new URL("../assets/visionfest-logo.svg", import.meta.url).href;
@@ -9,9 +11,22 @@ const logoUrl = new URL("../assets/visionfest-logo.svg", import.meta.url).href;
 export default function Header() {
   const [open, setOpen] = useState(false);
   const WA_URL = whatsAcolhimentoUrl();
+  
 
   const toggle = () => setOpen((v) => !v);
   const close = () => setOpen(false);
+
+  // Atualiza progresso ao receber eventos globais ou mudança no storage
+  useEffect(() => {
+    function updateFromStorage() {
+      setProg(missionProgress(getMissions()));
+    }
+    function onChanged(e) {
+      if (e?.detail?.progress) setProg(e.detail.progress);
+      else updateFromStorage();
+    }
+   
+  }, []);
 
   return (
     <header className="sticky top-0 z-50 header-glass">
@@ -79,14 +94,12 @@ export default function Header() {
           open ? "" : "pointer-events-none"
         }`}
       >
-        {/* overlay */}
         <div
           className={`absolute inset-0 bg-black/40 transition-opacity ${
             open ? "opacity-100" : "opacity-0"
           }`}
           onClick={close}
         />
-        {/* painel (sólido por tema) */}
         <nav
           role="dialog"
           aria-modal="true"
@@ -147,10 +160,6 @@ export default function Header() {
               </a>
             </li>
           </ul>
-
-          <div className="mt-4">
-            <ThemeToggle />
-          </div>
 
           <div className="mt-6 grid gap-3">
             <a

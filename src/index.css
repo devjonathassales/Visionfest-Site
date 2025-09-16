@@ -150,3 +150,32 @@ h1, h2, h3, .h1, .h2, .h3 { font-family: "Montserrat", sans-serif; }
 
   isolation: isolate;
 }
+/* ===== Vignette (apenas dark) ===== */
+.vignette-top { position: relative; }
+.vignette-both { position: relative; }
+
+:root[data-theme="dark"] .vignette-top::before,
+:root[data-theme="dark"] .vignette-both::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1; /* acima do pattern, abaixo do conteúdo */
+}
+
+:root[data-theme="dark"] .vignette-top::before {
+  /* escurece só o topo, suave e elegante */
+  background:
+    linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.00) 28%);
+}
+
+:root[data-theme="dark"] .vignette-both::before {
+  /* topo + rodapé, se quiser usar em alguma seção */
+  background:
+    linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 28%),
+    linear-gradient(to top,    rgba(0,0,0,0.40) 0%, rgba(0,0,0,0) 32%);
+  background-repeat: no-repeat;
+}
+
+/* garanta que o pattern fique abaixo do vignette */
+.pattern-dots { position: absolute; z-index: 0; }
