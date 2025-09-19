@@ -1,3 +1,4 @@
+// src/components/Pricing.jsx
 import React, { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
@@ -14,11 +15,8 @@ import {
   Crown,
   MessageSquare,
   Percent,
-  MessageCircle,
 } from "lucide-react";
 import { whatsAcolhimentoUrl } from "../lib/whatsapp";
-
-const WA_URL = whatsAcolhimentoUrl();
 
 /* ----- preços base (mensal) ----- */
 const BASE_MONTHLY = { essencial: 179, operacao: 200, full: 259 };
@@ -150,6 +148,24 @@ function usePrices(cycle) {
   }, [cycle]);
 }
 
+/* ========= Helper: URL de WhatsApp com mensagem + UTMs =========
+   Garantimos que não caia na msg padrão. */
+function buildPlanWhatsappUrl({ planName, cycle }) {
+  const text = `Olá! Tenho interesse no plano ${planName} (${cycle}). Gostaria de agendar uma demonstração.`;
+  // whatsAcolhimentoUrl aceita { text } e monta a base correta (api.whatsapp.com/send?...).
+  const base = whatsAcolhimentoUrl({ text });
+  const u = new URL(base);
+
+  // UTM fixas para análise do tráfego
+  u.searchParams.set("utm_source", "site");
+  u.searchParams.set("utm_medium", "cta");
+  u.searchParams.set("utm_campaign", "pricing");
+  u.searchParams.set("utm_content", `plan-${planName.toLowerCase()}`);
+  u.searchParams.set("utm_term", cycle);
+
+  return u.toString();
+}
+
 function PromoBadge({ children }) {
   return (
     <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full glass">
@@ -169,11 +185,15 @@ function PlanCard({ plan, i, cycle, priceMap }) {
       : InfinityIcon;
 
   const hasPrice = plan.key !== "enterprise";
-
   const diffToFull =
     hasPrice && plan.key === "operacao"
       ? priceMap.full.perMonth - priceMap.operacao.perMonth
       : null;
+
+  const WA_DEMO_URL =
+    plan.key === "enterprise"
+      ? buildPlanWhatsappUrl({ planName: "Enterprise", cycle }) // texto enterprise também customizado
+      : buildPlanWhatsappUrl({ planName: plan.name, cycle });
 
   return (
     <motion.div
@@ -236,7 +256,6 @@ function PlanCard({ plan, i, cycle, priceMap }) {
               </p>
             )}
 
-            {/* Upsell no Operação */}
             {diffToFull !== null && (
               <p className="text-xs text-muted mt-2">
                 Por <b>{formatBRL(diffToFull)}</b>/mês leve o <b>Full</b> com
@@ -259,40 +278,19 @@ function PlanCard({ plan, i, cycle, priceMap }) {
         </ul>
 
         <div className="mt-8 grid gap-3">
-          {plan.key === "enterprise" ? (
-            <a
-              href={WA_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-5 py-3 rounded-full inline-flex items-center justify-center gap-2 transition font-semibold bg-[var(--brand-green)] text-black hover:translate-y-[-1px]"
-            >
-              <MessageCircle size={18} />
-              Falar com vendas no WhatsApp
-            </a>
-          ) : (
-            <>
-              <a
-                href="#contato"
-                className={`px-5 py-3 rounded-full inline-flex items-center justify-center gap-2 transition font-semibold ${
-                  plan.key === "full"
-                    ? "btn-pulse bg-[var(--brand-green)] text-black hover:translate-y-[-1px]"
-                    : "bg-[var(--brand-green)] text-black hover:translate-y-[-1px]"
-                }`}
-              >
-                Agendar demonstração
-                <ArrowRight size={18} />
-              </a>
-              <a
-                href={WA_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-5 py-3 rounded-full inline-flex items-center justify-center gap-2 transition font-semibold border border-[var(--brand-green)] text-[var(--brand-green)] hover:bg-[var(--brand-green)] hover:text-black"
-              >
-                <MessageCircle size={18} />
-                WhatsApp
-              </a>
-            </>
-          )}
+          <a
+            href={WA_DEMO_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`px-5 py-3 rounded-full inline-flex items-center justify-center gap-2 transition font-semibold ${
+              plan.key === "full"
+                ? "btn-pulse bg-[var(--brand-green)] text-black hover:translate-y-[-1px]"
+                : "bg-[var(--brand-green)] text-black hover:translate-y-[-1px]"
+            }`}
+          >
+            Agendar demonstração
+            <ArrowRight size={18} />
+          </a>
         </div>
 
         {plan.key !== "enterprise" && (
@@ -305,8 +303,15 @@ function PlanCard({ plan, i, cycle, priceMap }) {
   );
 }
 
-function EnterpriseBar({ plan }) {
+/* ---- Barra Enterprise full-width e compacta ---- */
+function EnterpriseBar({ plan, cycle }) {
   const IconTop = InfinityIcon;
+
+  const WA_DEMO_URL = buildPlanWhatsappUrl({
+    planName: "Enterprise",
+    cycle,
+  });
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -320,10 +325,8 @@ function EnterpriseBar({ plan }) {
         <div className="w-full h-full rounded-2xl bg-gradient-to-br from-[var(--brand-purple)] via-transparent to-[var(--brand-green)] opacity-30" />
       </div>
 
-      {/* Conteúdo compacto e horizontal */}
       <div className="p-5 md:p-6 lg:p-7">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
-          {/* Esquerda: título + chip */}
           <div className="min-w-[220px]">
             <div className="flex items-center gap-3">
               <IconTop className="text-[var(--brand-green)]" />
@@ -338,7 +341,6 @@ function EnterpriseBar({ plan }) {
             </div>
           </div>
 
-          {/* Centro: bullets densos em 2 colunas no md+ */}
           <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-sm leading-relaxed md:flex-1">
             {plan.bullets.map((b, idx) => (
               <li key={idx} className="flex items-start gap-2">
@@ -351,16 +353,15 @@ function EnterpriseBar({ plan }) {
             ))}
           </ul>
 
-          {/* Direita: CTA */}
           <div className="shrink-0">
             <a
-              href={WA_URL}
+              href={WA_DEMO_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="px-5 py-3 rounded-full inline-flex items-center justify-center gap-2 transition font-semibold bg-[var(--brand-green)] text-black hover:translate-y-[-1px]"
             >
-              <MessageCircle size={18} />
-              Falar com vendas no WhatsApp
+              Falar com vendas
+              <ArrowRight size={18} />
             </a>
             <p className="text-xs text-muted mt-1 text-center md:text-right">
               Projeto e SLA sob medida
@@ -415,7 +416,7 @@ export default function Pricing() {
           </div>
         </div>
 
-        {/* 3 planos principais (topo) */}
+        {/* 3 planos principais */}
         <div className="mt-10 grid sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {mainPlans.map((p, i) => (
             <PlanCard
@@ -428,9 +429,10 @@ export default function Pricing() {
           ))}
         </div>
 
+        {/* Enterprise compacto full-width */}
         {enterprise && (
           <div className="mt-6">
-            <EnterpriseBar plan={enterprise} />
+            <EnterpriseBar plan={enterprise} cycle={cycle} />
           </div>
         )}
 

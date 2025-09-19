@@ -1,115 +1,86 @@
+// src/components/LeadForm.jsx
 import React, { useState } from "react";
 import { track } from "../lib/analytics";
-import { whatsAcolhimentoUrl } from "../lib/whatsapp";
+import { saveLeadToWebhook } from "../lib/leads";
 
 export default function LeadForm() {
   const [loading, setLoading] = useState(false);
   const [ok, setOk] = useState(false);
+  const [queuedInfo, setQueuedInfo] = useState(false);
   const [err, setErr] = useState("");
 
   function toast(detail) {
-    window.dispatchEvent(new CustomEvent("vf:toast", { detail }));
-  }
-
-  // Monta o link do WhatsApp com mensagem + UTMs (fixas + capturadas)
-  function buildWhatsUrl(payload) {
-    const base = whatsAcolhimentoUrl(); 
-    const FIXED_UTM = {
-      utm_source: "lp",
-      utm_medium: "leadform",
-      utm_campaign: "launch",
-    };
-
-    // junta UTMs fixas com as da URL (se houver no localStorage)
-    let utmAll = { ...FIXED_UTM };
     try {
-      const stored = JSON.parse(localStorage.getItem("utm") || "{}");
-      utmAll = { ...utmAll, ...stored };
+      window.dispatchEvent(new CustomEvent("vf:toast", { detail }));
     } catch {}
-
-    // monta “UTM: k=v · k=v …”
-    const utmStr = Object.entries(utmAll)
-      .filter(([, v]) => v)
-      .map(([k, v]) => `${k}=${v}`)
-      .join(" · ");
-
-    try {
-      const u = new URL(base);
-      const already = u.searchParams.get("text") || "";
-
-      const nome = payload?.nome || "";
-      const empresa = payload?.empresa || "";
-      const email = payload?.email || "";
-      const fone = payload?.whatsapp || "";
-      const origem = `Origem: LP (${window.location.pathname || "/"})`;
-
-      const extra =
-        `Olá! Sou ${nome}${empresa ? " da " + empresa : ""}. ` +
-        `Quero agendar uma demonstração do Visionfest.\n` +
-        (email ? `E-mail: ${email}\n` : "") +
-        (fone ? `WhatsApp: ${fone}\n` : "") +
-        `${origem}\n` +
-        (utmStr ? `UTM: ${utmStr}` : "");
-
-      const msg = already ? `${already}\n\n${extra}` : extra;
-      u.searchParams.set("text", msg);
-      return u.toString();
-    } catch {
-      return base; // fallback bruto
-    }
   }
 
   async function onSubmit(e) {
     e.preventDefault();
-    setErr("");
-    setLoading(true);
 
-    const formData = new FormData(e.currentTarget);
+    setLoading(true);
+    setOk(false);
+    setQueuedInfo(false);
+    setErr("");
+
+    // >>> capture o form ANTES dos awaits
+    const formEl = e.currentTarget;
+
+    const formData = new FormData(formEl);
     const data = Object.fromEntries(formData.entries());
 
-    // Anexa UTMs ao payload que será enviado ao backend
+    // anexa UTM se houver
     try {
-      const stored = JSON.parse(localStorage.getItem("utm") || "{}");
-      Object.assign(data, stored, {
-        utm_source: "lp",
-        utm_medium: "leadform",
-        utm_campaign: "launch",
-      });
+      const utm = JSON.parse(localStorage.getItem("utm") || "{}");
+      Object.assign(data, utm);
     } catch {}
 
-    // 👉 abre WhatsApp imediatamente (nova aba). Se bloqueado, usa a mesma aba
-    const waHref = buildWhatsUrl(data);
-    track("whatsapp_redirect_from_form");
-    toast({
-      title: "Abrindo WhatsApp…",
-      message: "Estamos te levando para o atendimento.",
-      type: "info",
-    });
-    const win = window.open(waHref, "_blank", "noopener,noreferrer");
-    if (!win) window.location.href = waHref;
-
-    // Envia o lead em paralelo
     try {
-      const res = await fetch("/api/lead", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error("Falha ao enviar");
+      const res = await saveLeadToWebhook(data);
 
-      setOk(true);
-      track("form_submit");
+      if (res.ok) {
+        setOk(true);
+        toast({
+          title: "Obrigado!",
+          message: "Recebemos seus dados e já registramos aqui.",
+          type: "success",
+        });
+      } else if (res.queued) {
+        // sucesso em fila (offline/webhook ausente)
+        setOk(true);
+        setQueuedInfo(true);
+        toast({
+          title: "Recebido (em fila)",
+          message:
+            "Salvamos seus dados localmente e enviaremos assim que houver conexão.",
+          type: "success",
+        });
+      } else {
+        // falha real
+        setErr("Não foi possível enviar. Tente novamente.");
+        toast({
+          title: "Erro ao enviar",
+          message: "Verifique sua conexão e tente de novo.",
+          type: "error",
+        });
+        setLoading(false);
+        return; // não reseta form em falha real
+      }
 
-      // marca missão + toast local
-      window.dispatchEvent(new Event("vf:lead_submitted"));
-      toast({
-        title: "Obrigado!",
-        message:
-          "Recebemos seus dados. Nossa equipe continuará o atendimento no WhatsApp.",
-        type: "success",
-      });
+      // analytics
+      try {
+        track("form_submit");
+      } catch {}
 
-      e.currentTarget.reset();
+      // >>> reset usando a referência salva
+      try {
+        formEl.reset();
+      } catch {}
+
+      // evento global opcional
+      try {
+        window.dispatchEvent(new Event("vf:lead_submitted"));
+      } catch {}
     } catch (e) {
       setErr("Não foi possível enviar. Tente novamente.");
       toast({
@@ -171,17 +142,25 @@ export default function LeadForm() {
       {ok && (
         <p className="mt-3 text-green-400">
           Recebemos seus dados, em breve entraremos em contato.
+          {queuedInfo && (
+            <>
+              {" "}
+              (Sem conexão/webhook indisponível: enviaremos automaticamente ao
+              restabelecer.)
+            </>
+          )}
         </p>
       )}
+
       {err && <p className="mt-3 text-red-400">{err}</p>}
 
       <p className="mt-4 text-xs text-muted">
         Ao continuar, você concorda com nossos{" "}
-        <a href="#" className="underline">
+        <a href="/termos.html" className="underline">
           Termos
         </a>{" "}
         e{" "}
-        <a href="#" className="underline">
+        <a href="/privacidade.html" className="underline">
           Privacidade
         </a>
         .

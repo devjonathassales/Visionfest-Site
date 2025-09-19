@@ -1,17 +1,56 @@
-// src/components/Footer.jsx
 import React from "react";
 import { Instagram, ChevronUp } from "lucide-react";
 
-const IG_URL = import.meta.env.VITE_INSTAGRAM_URL; 
+// Aceita os dois nomes e aplica fallback hardcoded se vier vazio
+const RAW_IG = (
+  import.meta.env?.VITE_SOCIAL_INSTAGRAM ??
+  import.meta.env?.VITE_INSTAGRAM_URL ??
+  ""
+)
+  .toString()
+  .trim();
+
+const HARD_FALLBACK_IG = "https://www.instagram.com/visionfestofc";
+
+function normalizeUrl(u) {
+  try {
+    if (!u) return "";
+    let s = String(u).trim();
+    if (!/^https?:\/\//i.test(s)) s = "https://" + s.replace(/^\/+/, "");
+    new URL(s); // valida
+    return s;
+  } catch {
+    return "";
+  }
+}
+
+const IG_URL = normalizeUrl(RAW_IG) || HARD_FALLBACK_IG; // 👈 fallback final
+const igEnabled = !!IG_URL;
+
 const currentYear = new Date().getFullYear();
 
 export default function Footer() {
   const toTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
 
+  const openInstagram = (e) => {
+    e?.preventDefault?.();
+    try {
+      // analytics opcional
+      if (typeof window !== "undefined" && window.gtag) {
+        window.gtag("event", "click", { label: "footer_instagram" });
+      }
+    } catch {}
+    // abre com noopener/noreferrer
+    window.open(IG_URL, "_blank", "noopener,noreferrer");
+  };
+
+  if (import.meta.env?.DEV) {
+    console.debug("[Footer] Instagram URL ativo:", IG_URL || "<vazio>");
+  }
+
   return (
     <footer className="relative section-glass mt-10">
       <div className="max-w-6xl mx-auto px-6 py-10 md:py-12">
-        {/* linha de cima */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
           <div>
             <h3 className="text-lg md:text-xl font-[Montserrat] font-extrabold">
@@ -22,11 +61,10 @@ export default function Footer() {
             </p>
           </div>
 
-          {/* Ações: Instagram + Voltar ao topo  */}
           <div className="flex items-center gap-3">
-            {/* Ícone do Instagram (logo) */}
             <a
               href={IG_URL}
+              onClick={openInstagram}
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Abrir Instagram da Visionfest"
@@ -38,7 +76,6 @@ export default function Footer() {
               <Instagram size={18} />
             </a>
 
-            {/* Voltar ao topo — discreto */}
             <button
               onClick={toTop}
               aria-label="Voltar ao topo"
@@ -51,16 +88,12 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* separador */}
         <div className="my-8 border-t border-subtle" />
 
-        {/* linha de baixo */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 text-sm">
           <div className="text-muted">
             © {currentYear} Visionfest — Todos os direitos reservados.
           </div>
-
-          {/* Links legais */}
           <div className="text-muted">
             <a
               href="/termos.html"

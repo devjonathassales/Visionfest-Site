@@ -16,6 +16,7 @@ import LeadForm from "./components/LeadForm";
 import Footer from "./components/Footer";
 import ToastCenter from "./components/ToastCenter";
 import { injectJsonLd } from "./lib/seo";
+import { flushQueuedLeads } from "./lib/leads"; // <-- NOVO
 
 injectJsonLd();
 
@@ -36,6 +37,14 @@ export default function App() {
       };
       localStorage.setItem("utm", JSON.stringify(utm));
     } catch {}
+  }, []);
+
+  // Ao carregar a página (e quando voltar a conexão), tenta enviar a fila de leads
+  useEffect(() => {
+    flushQueuedLeads();
+    const onOnline = () => flushQueuedLeads();
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
   }, []);
 
   return (

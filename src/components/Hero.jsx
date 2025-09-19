@@ -1,8 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { ArrowRight, ShieldCheck, Image as ImageIcon } from "lucide-react";
-import { track } from "../lib/analytics";
-import { whatsAcolhimentoUrl } from "../lib/whatsapp";
+import { whatsAcolhimentoUrl, handleWhatsClick } from "../lib/whatsapp";
 
 export default function Hero() {
   const [imgOk, setImgOk] = useState(true);
@@ -13,20 +12,10 @@ export default function Hero() {
   const WA_URL = whatsAcolhimentoUrl();
 
   return (
-    <section
-      className="
-        relative overflow-hidden
-        bg-gradient-to-br from-[#5B2C6F] via-[#000000] to-[#5B2C6F]
-      "
-    >
-      {/* padrão radial esverdeado por cima do gradiente */}
+    <section className="relative overflow-hidden bg-gradient-to-br from-[#5B2C6F] via-[#000000] to-[#5B2C6F]">
       <div
         aria-hidden
-        className="
-          absolute inset-0 opacity-10
-          bg-[radial-gradient(circle_at_1px_1px,#7ED957_1px,transparent_1px)]
-          [background-size:24px_24px]
-        "
+        className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_1px_1px,#7ED957_1px,transparent_1px)] [background-size:24px_24px]"
       />
 
       <div className="relative z-10 max-w-6xl mx-auto px-6 pt-20 pb-16 grid md:grid-cols-2 items-center gap-10">
@@ -50,13 +39,11 @@ export default function Hero() {
           </p>
 
           <div className="mt-8 flex flex-wrap items-center gap-4">
-            {/* Quero conhecer → WhatsApp */}
             <a
               href={WA_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => track("cta_quero_conhecer")}
+              onClick={handleWhatsClick("hero_quero_conhecer")}
               className="btn-pulse px-6 py-3 rounded-full bg-[var(--brand-green)] text-black font-semibold shadow-soft hover:translate-y-[-1px] transition inline-flex items-center gap-2"
+              rel="nofollow noopener"
             >
               Quero conhecer
               <ArrowRight size={18} />

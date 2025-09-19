@@ -1,11 +1,58 @@
+// src/components/VipCTA.jsx
 import React from "react";
 import { ArrowRight, Sparkles } from "lucide-react";
-import { whatsAcolhimentoUrl } from "../lib/whatsapp";
 
-const VIP_URL = import.meta.env.VITE_WHATSAPP_VIP; 
-const WA_URL = whatsAcolhimentoUrl();
+// Candidatos: env nova, env legada e um fallback (para não travar enquanto ajusta o .env)
+const CANDIDATES = [
+  import.meta.env?.VITE_WHATSAPP_VIP_URL,
+  import.meta.env?.VITE_WHATSAPP_VIP, // legado, se existir em algum ambiente
+  "https://chat.whatsapp.com/Bkkn0pPKJZX3wJ6cTe8BUL?", // fallback temporário
+];
+
+// Pega o primeiro valor válido
+function pickVipUrl() {
+  for (const raw of CANDIDATES) {
+    if (typeof raw !== "string") continue;
+    const v = raw.trim();
+    if (!v) continue;
+    const low = v.toLowerCase();
+    if (low === "undefined" || low === "null") continue;
+    return v;
+  }
+  return "";
+}
+
+// Valida se é link de GRUPO (chat.whatsapp.com/...)
+function isGroupUrl(url) {
+  return /^https?:\/\/chat\.whatsapp\.com\/[A-Za-z0-9_-]+/i.test(url.trim());
+}
 
 export default function VipCTA() {
+  const vipUrl = pickVipUrl();
+  const valid = isGroupUrl(vipUrl);
+
+  function openVip(e) {
+    e?.preventDefault?.();
+    if (!valid) {
+      console.warn(
+        "[VIP] Nenhum link de grupo válido encontrado. Valor atual:",
+        vipUrl
+      );
+      return;
+    }
+    try {
+      window.open(vipUrl, "_blank", "noopener,noreferrer");
+    } catch {
+      window.location.href = vipUrl;
+    }
+  }
+
+  if (import.meta.env?.DEV) {
+    // Ajuda a diagnosticar no DevTools
+    // eslint-disable-next-line no-console
+    console.debug("[VIP] usando URL:", vipUrl, "válido?", valid);
+  }
+
   return (
     <section className="relative vignette-top">
       <div aria-hidden className="pattern-dots opacity-10 inset-0" />
@@ -27,18 +74,17 @@ export default function VipCTA() {
             </div>
 
             <div className="grid sm:grid-cols-1 gap-3 md:text-right">
-              
               <a
-                href={VIP_URL || WA_URL}
+                href={valid ? vipUrl : "#"}
+                onClick={openVip}
                 target="_blank"
-                rel="noopener noreferrer"
+                rel="noopener noreferrer nofollow"
                 className="btn-pulse px-6 py-3 rounded-full bg-[var(--brand-green)] text-black font-semibold hover:translate-y-[-1px] transition inline-flex items-center gap-2"
+                data-vip={vipUrl}
               >
                 Entrar no Grupo VIP
                 <ArrowRight size={18} />
               </a>
-
-              
             </div>
           </div>
         </div>
