@@ -1,7 +1,7 @@
 import React from "react";
 import { Instagram, ChevronUp } from "lucide-react";
+import { withUtm } from "../lib/utm";
 
-// Aceita os dois nomes e aplica fallback hardcoded se vier vazio
 const RAW_IG = (
   import.meta.env?.VITE_SOCIAL_INSTAGRAM ??
   import.meta.env?.VITE_INSTAGRAM_URL ??
@@ -17,14 +17,20 @@ function normalizeUrl(u) {
     if (!u) return "";
     let s = String(u).trim();
     if (!/^https?:\/\//i.test(s)) s = "https://" + s.replace(/^\/+/, "");
-    new URL(s); // valida
+    new URL(s); 
     return s;
   } catch {
     return "";
   }
 }
 
-const IG_URL = normalizeUrl(RAW_IG) || HARD_FALLBACK_IG; // 👈 fallback final
+const IG_BASE = normalizeUrl(RAW_IG) || HARD_FALLBACK_IG; // 👈 base com fallback
+const IG_URL = withUtm(IG_BASE, {
+  source: "site",
+  medium: "footer",
+  campaign: "lp",
+  content: "instagram",
+});
 const igEnabled = !!IG_URL;
 
 const currentYear = new Date().getFullYear();
@@ -35,12 +41,12 @@ export default function Footer() {
   const openInstagram = (e) => {
     e?.preventDefault?.();
     try {
-      // analytics opcional
+      
       if (typeof window !== "undefined" && window.gtag) {
         window.gtag("event", "click", { label: "footer_instagram" });
       }
     } catch {}
-    // abre com noopener/noreferrer
+    
     window.open(IG_URL, "_blank", "noopener,noreferrer");
   };
 

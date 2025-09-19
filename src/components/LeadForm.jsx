@@ -1,7 +1,14 @@
-// src/components/LeadForm.jsx
 import React, { useState } from "react";
 import { track } from "../lib/analytics";
 import { saveLeadToWebhook } from "../lib/leads";
+
+function genId() {
+  try {
+    return crypto.randomUUID();
+  } catch {
+    return "id_" + Date.now() + "_" + Math.random().toString(36).slice(2);
+  }
+}
 
 export default function LeadForm() {
   const [loading, setLoading] = useState(false);
@@ -17,71 +24,57 @@ export default function LeadForm() {
 
   async function onSubmit(e) {
     e.preventDefault();
+    if (loading) return; // trava duplo clique
 
     setLoading(true);
     setOk(false);
     setQueuedInfo(false);
     setErr("");
 
-    // >>> capture o form ANTES dos awaits
     const formEl = e.currentTarget;
-
     const formData = new FormData(formEl);
     const data = Object.fromEntries(formData.entries());
 
-    // anexa UTM se houver
+    // anexa UTM
     try {
       const utm = JSON.parse(localStorage.getItem("utm") || "{}");
       Object.assign(data, utm);
     } catch {}
 
+    // **idempotência**
+    if (!data.id) data.id = genId();
+
     try {
       const res = await saveLeadToWebhook(data);
 
-      if (res.ok) {
+      if (res.ok || res.queued) {
         setOk(true);
+        if (res.queued) setQueuedInfo(true);
         toast({
-          title: "Obrigado!",
-          message: "Recebemos seus dados e já registramos aqui.",
+          title: res.queued ? "Recebido (em fila)" : "Obrigado!",
+          message: res.queued
+            ? "Salvamos localmente e enviaremos assim que possível."
+            : "Recebemos seus dados e já registramos aqui.",
           type: "success",
         });
-      } else if (res.queued) {
-        // sucesso em fila (offline/webhook ausente)
-        setOk(true);
-        setQueuedInfo(true);
-        toast({
-          title: "Recebido (em fila)",
-          message:
-            "Salvamos seus dados localmente e enviaremos assim que houver conexão.",
-          type: "success",
-        });
+        try {
+          track("form_submit");
+        } catch {}
+        try {
+          formEl.reset();
+        } catch {}
+        try {
+          window.dispatchEvent(new Event("vf:lead_submitted"));
+        } catch {}
       } else {
-        // falha real
         setErr("Não foi possível enviar. Tente novamente.");
         toast({
           title: "Erro ao enviar",
           message: "Verifique sua conexão e tente de novo.",
           type: "error",
         });
-        setLoading(false);
-        return; // não reseta form em falha real
       }
-
-      // analytics
-      try {
-        track("form_submit");
-      } catch {}
-
-      // >>> reset usando a referência salva
-      try {
-        formEl.reset();
-      } catch {}
-
-      // evento global opcional
-      try {
-        window.dispatchEvent(new Event("vf:lead_submitted"));
-      } catch {}
-    } catch (e) {
+    } catch {
       setErr("Não foi possível enviar. Tente novamente.");
       toast({
         title: "Erro ao enviar",
@@ -101,6 +94,9 @@ export default function LeadForm() {
       </p>
 
       <form className="mt-6 grid md:grid-cols-2 gap-4" onSubmit={onSubmit}>
+        
+        <input type="hidden" name="id" />
+
         <input
           name="nome"
           required
@@ -151,7 +147,6 @@ export default function LeadForm() {
           )}
         </p>
       )}
-
       {err && <p className="mt-3 text-red-400">{err}</p>}
 
       <p className="mt-4 text-xs text-muted">

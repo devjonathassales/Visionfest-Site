@@ -19,9 +19,9 @@ export default function Header() {
           <span className="sr-only">Visionfest</span>
         </a>
 
-        {/* CTA: Já sou cliente */}
+        
         <div className="flex items-center gap-3">
-          {/* Mobile: botão menor */}
+          
           <a
             href={APP_URL}
             className="sm:hidden inline-flex items-center justify-center px-3 py-1.5 rounded-full bg-[var(--brand-purple)] text-white text-xs font-semibold hover:opacity-90 transition"
@@ -29,7 +29,7 @@ export default function Header() {
             Já sou cliente
           </a>
 
-          {/* Desktop: botão padrão */}
+          
           <a
             href={APP_URL}
             className="hidden sm:inline-flex px-4 py-2 rounded-full bg-[var(--brand-purple)] text-white hover:opacity-90 transition"

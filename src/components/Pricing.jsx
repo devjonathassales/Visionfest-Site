@@ -1,4 +1,3 @@
-// src/components/Pricing.jsx
 import React, { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
@@ -18,7 +17,7 @@ import {
 } from "lucide-react";
 import { whatsAcolhimentoUrl } from "../lib/whatsapp";
 
-/* ----- preços base (mensal) ----- */
+
 const BASE_MONTHLY = { essencial: 179, operacao: 200, full: 259 };
 
 const ADDONS = { userExtra: 24, companyExtra: 79, storageGb: 9 };
@@ -127,7 +126,7 @@ function usePrices(cycle) {
         },
       };
     }
-    const eff = (m) => Math.round((m * 10) / 12); // 2 meses grátis
+    const eff = (m) => Math.round((m * 10) / 12); 
     return {
       essencial: {
         perMonth: eff(BASE_MONTHLY.essencial),
@@ -148,15 +147,13 @@ function usePrices(cycle) {
   }, [cycle]);
 }
 
-/* ========= Helper: URL de WhatsApp com mensagem + UTMs =========
-   Garantimos que não caia na msg padrão. */
+
 function buildPlanWhatsappUrl({ planName, cycle }) {
   const text = `Olá! Tenho interesse no plano ${planName} (${cycle}). Gostaria de agendar uma demonstração.`;
-  // whatsAcolhimentoUrl aceita { text } e monta a base correta (api.whatsapp.com/send?...).
   const base = whatsAcolhimentoUrl({ text });
   const u = new URL(base);
 
-  // UTM fixas para análise do tráfego
+  
   u.searchParams.set("utm_source", "site");
   u.searchParams.set("utm_medium", "cta");
   u.searchParams.set("utm_campaign", "pricing");
@@ -192,7 +189,7 @@ function PlanCard({ plan, i, cycle, priceMap }) {
 
   const WA_DEMO_URL =
     plan.key === "enterprise"
-      ? buildPlanWhatsappUrl({ planName: "Enterprise", cycle }) // texto enterprise também customizado
+      ? buildPlanWhatsappUrl({ planName: "Enterprise", cycle })
       : buildPlanWhatsappUrl({ planName: plan.name, cycle });
 
   return (
@@ -320,7 +317,7 @@ function EnterpriseBar({ plan, cycle }) {
       transition={{ duration: 0.36, delay: 0.1 }}
       className="relative w-full rounded-2xl card shadow-soft overflow-hidden"
     >
-      {/* Borda gradiente */}
+      
       <div className="absolute inset-0 -z-10 p-[1.5px]">
         <div className="w-full h-full rounded-2xl bg-gradient-to-br from-[var(--brand-purple)] via-transparent to-[var(--brand-green)] opacity-30" />
       </div>
@@ -390,7 +387,7 @@ export default function Pricing() {
           </h2>
         </div>
 
-        {/* Toggle Mensal / Anual */}
+        
         <div className="mt-6 text-center">
           <div className="inline-flex p-1 rounded-full glass">
             <button
@@ -416,7 +413,7 @@ export default function Pricing() {
           </div>
         </div>
 
-        {/* 3 planos principais */}
+        
         <div className="mt-10 grid sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {mainPlans.map((p, i) => (
             <PlanCard
@@ -429,14 +426,14 @@ export default function Pricing() {
           ))}
         </div>
 
-        {/* Enterprise compacto full-width */}
+        
         {enterprise && (
           <div className="mt-6">
             <EnterpriseBar plan={enterprise} cycle={cycle} />
           </div>
         )}
 
-        {/* Notas/legendas + add-ons */}
+        
         <div className="mt-8 text-xs text-muted space-y-1">
           <p>
             • <b>Créditos de melhoria</b> incluídos variam por plano; pedidos

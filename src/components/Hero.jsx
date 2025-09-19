@@ -9,7 +9,16 @@ export default function Hero() {
     () => new URL("../assets/mock-dashboard.png", import.meta.url).href,
     []
   );
-  const WA_URL = whatsAcolhimentoUrl();
+
+  
+  const WA_URL = whatsAcolhimentoUrl({
+    utm: {
+      source: "site",
+      medium: "cta",
+      campaign: "lp",
+      content: "hero_quero_conhecer",
+    },
+  });
 
   return (
     <section className="relative overflow-hidden bg-gradient-to-br from-[#5B2C6F] via-[#000000] to-[#5B2C6F]">
@@ -41,7 +50,14 @@ export default function Hero() {
           <div className="mt-8 flex flex-wrap items-center gap-4">
             <a
               href={WA_URL}
-              onClick={handleWhatsClick("hero_quero_conhecer")}
+              onClick={handleWhatsClick("hero_quero_conhecer", {
+                utm: {
+                  source: "site",
+                  medium: "cta",
+                  campaign: "lp",
+                  content: "hero_quero_conhecer",
+                },
+              })}
               className="btn-pulse px-6 py-3 rounded-full bg-[var(--brand-green)] text-black font-semibold shadow-soft hover:translate-y-[-1px] transition inline-flex items-center gap-2"
               rel="nofollow noopener"
             >

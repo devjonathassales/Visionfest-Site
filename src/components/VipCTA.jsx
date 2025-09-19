@@ -1,11 +1,11 @@
-// src/components/VipCTA.jsx
 import React from "react";
 import { ArrowRight, Sparkles } from "lucide-react";
+import { whatsAcolhimentoUrl } from "../lib/whatsapp";
+import { withUtm } from "../lib/utm";
 
-// Candidatos: env nova, env legada e um fallback (para não travar enquanto ajusta o .env)
 const CANDIDATES = [
   import.meta.env?.VITE_WHATSAPP_VIP_URL,
-  import.meta.env?.VITE_WHATSAPP_VIP, // legado, se existir em algum ambiente
+  import.meta.env?.VITE_WHATSAPP_VIP, // legado, se existir
   "https://chat.whatsapp.com/Bkkn0pPKJZX3wJ6cTe8BUL?", // fallback temporário
 ];
 
@@ -28,29 +28,47 @@ function isGroupUrl(url) {
 }
 
 export default function VipCTA() {
-  const vipUrl = pickVipUrl();
-  const valid = isGroupUrl(vipUrl);
+  const vipUrlRaw = pickVipUrl();
+  const valid = isGroupUrl(vipUrlRaw);
+
+  // Adiciona UTM no link do GRUPO
+  const vipUrl = valid
+    ? withUtm(vipUrlRaw, {
+        source: "site",
+        medium: "cta",
+        campaign: "lp",
+        content: "vip_grupo",
+      })
+    : "";
+
+  // Fallback WA com UTM caso não haja link de grupo válido
+  const WA_FALLBACK = whatsAcolhimentoUrl({
+    utm: {
+      source: "site",
+      medium: "cta",
+      campaign: "lp",
+      content: "vip_fallback",
+    },
+  });
 
   function openVip(e) {
     e?.preventDefault?.();
-    if (!valid) {
-      console.warn(
-        "[VIP] Nenhum link de grupo válido encontrado. Valor atual:",
-        vipUrl
-      );
-      return;
-    }
+    const url = vipUrl || WA_FALLBACK;
     try {
-      window.open(vipUrl, "_blank", "noopener,noreferrer");
+      window.open(url, "_blank", "noopener,noreferrer");
     } catch {
-      window.location.href = vipUrl;
+      window.location.href = url;
     }
   }
 
   if (import.meta.env?.DEV) {
-    // Ajuda a diagnosticar no DevTools
-    // eslint-disable-next-line no-console
-    console.debug("[VIP] usando URL:", vipUrl, "válido?", valid);
+    console.debug(
+      "[VIP] usando URL:",
+      vipUrl || WA_FALLBACK,
+      " (valid group? ",
+      valid,
+      ")"
+    );
   }
 
   return (
@@ -75,12 +93,12 @@ export default function VipCTA() {
 
             <div className="grid sm:grid-cols-1 gap-3 md:text-right">
               <a
-                href={valid ? vipUrl : "#"}
+                href={vipUrl || WA_FALLBACK}
                 onClick={openVip}
                 target="_blank"
                 rel="noopener noreferrer nofollow"
                 className="btn-pulse px-6 py-3 rounded-full bg-[var(--brand-green)] text-black font-semibold hover:translate-y-[-1px] transition inline-flex items-center gap-2"
-                data-vip={vipUrl}
+                data-vip={vipUrlRaw}
               >
                 Entrar no Grupo VIP
                 <ArrowRight size={18} />

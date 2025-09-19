@@ -1,54 +1,28 @@
-// src/lib/leads.js
 const QUEUE_KEY = "vf_lead_queue";
 
 function getWebhookUrl() {
-  let fromEnv = "";
   try {
-    fromEnv = (import.meta?.env?.VITE_LEADS_WEBHOOK_URL || "")
-      .toString()
-      .trim();
-  } catch {}
-
-  // Fallbacks para DEV/Debug:
-  // - window.__VF_WEBHOOK_URL (você pode setar no console)
-  // - localStorage["VITE_LEADS_WEBHOOK_URL"] (persistente em dev)
-  let fromGlobal = "";
-  if (typeof window !== "undefined" && window.__VF_WEBHOOK_URL) {
-    try {
-      fromGlobal = String(window.__VF_WEBHOOK_URL).trim();
-    } catch {}
+    return (import.meta.env.VITE_LEADS_WEBHOOK_URL || "").toString().trim();
+  } catch {
+    return "";
   }
+}
 
-  let fromLS = "";
+function ensureId(p) {
+  if (p && p.id) return p.id;
   try {
-    fromLS = (localStorage.getItem("VITE_LEADS_WEBHOOK_URL") || "").trim();
-  } catch {}
-
-  const url = fromEnv || fromGlobal || fromLS;
-
-  // Diagnóstico
-  console.debug("[Leads] webhook sources →", {
-    fromEnv,
-    fromGlobal,
-    fromLS,
-    picked: url,
-  });
-
-  if (!url) {
-    console.warn(
-      "[Leads] VITE_LEADS_WEBHOOK_URL ausente. " +
-        "Defina no .env (raiz do projeto) e reinicie o dev server. " +
-        'Ou, para testar agora no DevTools, use: window.__VF_WEBHOOK_URL="https://.../exec"'
-    );
+    return crypto.randomUUID();
+  } catch {
+    return "id_" + Date.now() + "_" + Math.random().toString(36).slice(2);
   }
-  return url;
 }
 
 export async function saveLeadToWebhook(payload = {}, opts = {}) {
   const url = getWebhookUrl();
   if (!url) {
     if (!opts.silent) console.warn("[Leads] VITE_LEADS_WEBHOOK_URL ausente.");
-    queueLead({ ...payload, reason: "missing_webhook" });
+    const withId = { ...payload, id: ensureId(payload) };
+    queueLead({ ...withId, reason: "missing_webhook" });
     return {
       ok: false,
       error: "VITE_LEADS_WEBHOOK_URL ausente.",
@@ -58,6 +32,7 @@ export async function saveLeadToWebhook(payload = {}, opts = {}) {
 
   const enriched = {
     ...payload,
+    id: ensureId(payload), // **sempre**
     page: typeof location !== "undefined" ? location.href : "",
     ref: typeof document !== "undefined" ? document.referrer : "",
     ua: typeof navigator !== "undefined" ? navigator.userAgent : "",
@@ -65,34 +40,21 @@ export async function saveLeadToWebhook(payload = {}, opts = {}) {
   };
 
   try {
+    // IMPORTANTE: Apps Script não manda CORS por padrão → use no-cors
     const res = await fetch(url, {
       method: "POST",
-      // Se seu Apps Script aceita JSON, prefira application/json e ajuste o doPost.
+      mode: "no-cors",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
-      // headers: { "Content-Type": "application/json" },
       body: JSON.stringify(enriched),
     });
 
-    if (!res.ok) {
-      const text = await safeText(res);
-      throw new Error(
-        `Webhook HTTP ${res.status} ${res.statusText} :: ${text}`
-      );
-    }
+    // no-cors => status é opaco; considere ok e deixe dedupe no servidor
     return { ok: true };
   } catch (err) {
     if (!opts.silent)
       console.warn("[Leads] falha no envio, vou enfileirar:", err);
     queueLead(enriched);
     return { ok: false, error: String(err), queued: true };
-  }
-}
-
-async function safeText(res) {
-  try {
-    return await res.text();
-  } catch {
-    return "";
   }
 }
 
@@ -117,7 +79,7 @@ export async function flushQueuedLeads() {
   for (const item of q) {
     const r = await saveLeadToWebhook(item.payload, { silent: true });
     if (!r.ok) remaining.push(item);
-    await new Promise((r) => setTimeout(r, 350)); // evita throttling
+    await new Promise((r) => setTimeout(r, 350));
   }
   localStorage.setItem(QUEUE_KEY, JSON.stringify(remaining));
   return { sent: q.length - remaining.length, left: remaining.length };

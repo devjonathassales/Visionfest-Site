@@ -1,90 +1,80 @@
-// src/lib/whatsapp.js
-// Gera URL do WhatsApp com mensagem customizável e fallbacks robustos.
-// Agora sem encode manual (evita mensagem aparecer codificada no WhatsApp).
+const RAW_ENV = (import.meta?.env?.VITE_WHATSAPP_ACOLHIMENTO ?? "")
+  .toString()
+  .trim();
 
-// ENVs
-const RAW_PHONE_ENV = String(
-  (import.meta &&
-    import.meta.env &&
-    import.meta.env.VITE_WHATSAPP_ACOLHIMENTO) ||
-    ""
-).trim();
+const ENV_PHONE = RAW_ENV.replace(/\D/g, "");
 
-// Apenas dígitos
-const ENV_PHONE = RAW_PHONE_ENV.replace(/\D/g, "");
-
-// Fallback final de telefone
 const FALLBACK_PHONE = "5585996451221";
 
-// Mensagens
 const DEFAULT_MSG = "Olá! Vim pelo site Visionfest.";
-const ENV_MSG = String(
-  (import.meta &&
-    import.meta.env &&
-    import.meta.env.VITE_WHATSAPP_ACOLHIMENTO_MSG) ||
-    DEFAULT_MSG
-);
+const RAW_MSG = (
+  import.meta?.env?.VITE_WHATSAPP_ACOLHIMENTO_MSG ?? DEFAULT_MSG
+).toString();
 
-/** retorna um telefone válido */
 function getPhone() {
   if (ENV_PHONE && ENV_PHONE.length >= 10) return ENV_PHONE;
   return FALLBACK_PHONE;
 }
 
-/**
- * Monta URL canônica da API Web do WhatsApp.
- * Prioridade da mensagem: opts.text > ENV_MSG > DEFAULT_MSG
- *
- * @param {Object} [opts]
- * @param {string} [opts.text] Mensagem customizada para este CTA.
- * @param {Record<string,string|number|boolean>} [opts.extraParams] Parâmetros extras (UTMs etc.)
- */
-export function whatsAcolhimentoUrl(opts) {
-  const options = opts || {};
-  const phone = getPhone();
-
-  // Mensagem com prioridade e trim
-  let rawText =
-    (typeof options.text === "string" && options.text.trim()) ||
-    ENV_MSG ||
-    DEFAULT_MSG;
-
-  // Usa URLSearchParams para codificar automaticamente (sem encode manual)
-  const url = new URL("https://api.whatsapp.com/send");
-  if (phone) url.searchParams.set("phone", phone);
-  url.searchParams.set("text", rawText);
-
-  // Parâmetros extras (ex.: utm_source, utm_campaign…)
-  if (options.extraParams && typeof options.extraParams === "object") {
-    for (const [k, v] of Object.entries(options.extraParams)) {
-      if (v !== null && v !== undefined && String(v).length > 0) {
-        url.searchParams.set(k, String(v));
-      }
-    }
+function encodeText(txt) {
+  try {
+    return encodeURIComponent(txt ?? RAW_MSG);
+  } catch {
+    return encodeURIComponent(RAW_MSG);
   }
-
-  return url.toString();
 }
 
-/**
- * Handler de clique (opcional) caso prefira usar onClick.
- */
-export function handleWhatsClick(label, opts) {
-  const analyticsLabel =
-    typeof label === "string" && label ? label : "whatsapp_click";
-  const options = opts || {};
+function appendUtm(url, utm) {
+  if (!utm || typeof utm !== "object") return url;
+  try {
+    const u = new URL(url);
+    for (const [k, v] of Object.entries(utm)) {
+      if (v != null && v !== "") {
+        u.searchParams.set(`utm_${k}`, String(v));
+      }
+    }
+    return u.toString();
+  } catch {
+    const extra = Object.entries(utm)
+      .filter(([, v]) => v != null && v !== "")
+      .map(([k, v]) => `utm_${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+      .join("&");
+    if (!extra) return url;
+    return url + (url.includes("?") ? "&" : "?") + extra;
+  }
+}
+
+export function whatsAcolhimentoUrl(opts = {}) {
+  const phone = getPhone();
+  const textParam = encodeText(opts.text);
+
+  let base = phone
+    ? `https://api.whatsapp.com/send?phone=${phone}&text=${textParam}`
+    : `https://api.whatsapp.com/send?text=${textParam}`;
+
+  base = appendUtm(base, opts.utm);
+
+  return base;
+}
+
+export function handleWhatsClick(label = "whatsapp_click", opts = {}) {
   return (e) => {
     try {
       e?.preventDefault?.();
     } catch {}
+
     try {
-      if (typeof window !== "undefined" && window.gtag)
-        window.gtag("event", "click", { label: analyticsLabel });
+      if (typeof window !== "undefined" && window.gtag) {
+        window.gtag("event", "click", { label });
+      }
     } catch {}
-    const url = whatsAcolhimentoUrl(options);
+
+    const url = whatsAcolhimentoUrl(opts);
+
     try {
       window.location.href = url;
     } catch {
+      // fallback final
       window.open(url, "_self");
     }
   };
